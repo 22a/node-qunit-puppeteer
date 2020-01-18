@@ -99,7 +99,7 @@ async function exposeCallbacks(page, hooks) {
       const currentTest = module.tests.find(t => t.name === test.name);
       Object.assign(currentTest, test);
       if (typeof hooks.testDone === 'function') {
-        hooks.testDone(currentTest, result)
+        hooks.testDone(test, currentTest, result)
       }
     } catch (ex) {
       deferred.reject(ex);
