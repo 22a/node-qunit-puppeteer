@@ -99,7 +99,7 @@ async function exposeCallbacks(page, hooks) {
       const currentTest = module.tests.find(t => t.name === test.name);
       Object.assign(currentTest, test);
       if (typeof hooks.testDone === 'function') {
-        hooks.testDone(test, currentTest, result)
+        hooks.testDone(currentTest, result)
       }
     } catch (ex) {
       deferred.reject(ex);
@@ -156,8 +156,8 @@ async function exposeCallbacks(page, hooks) {
 
       currentTest.log = currentTest.log || [];
       currentTest.log.push(record);
-      if (typeof hooks.testDone === 'function') {
-        hooks.testDone(currentTest, result)
+      if (typeof hooks.log === 'function') {
+        hooks.log(currentTest, result)
       }
     } catch (ex) {
       deferred.reject(ex);
