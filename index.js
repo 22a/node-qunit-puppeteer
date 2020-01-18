@@ -60,7 +60,7 @@ function deepClone(object) {
  * @returns {object} a deferred object (see defer) that will be resolved or rejected
  * when all tests are done. This object will receive a {QunitTestResult} parameter
  */
-async function exposeCallbacks(page) {
+async function exposeCallbacks(page, hooks) {
   const result = {
     modules: {},
   };
@@ -70,6 +70,9 @@ async function exposeCallbacks(page) {
   await page.exposeFunction(BEGIN_CB, (context) => {
     try {
       result.totalTests = context.totalTests;
+      if (typeof hooks.begin === 'function') {
+        hooks.begin(result)
+      }
     } catch (ex) {
       deferred.reject(ex);
     }
@@ -79,6 +82,11 @@ async function exposeCallbacks(page) {
     try {
       result.stats = deepClone(context);
       deferred.resolve(result);
+      // a bit superfluous given that you can await deferred.promise to achieve
+      // this but ¯\_(ツ)_/¯
+      if (typeof hooks.done === 'function') {
+        hooks.done(result)
+      }
     } catch (ex) {
       deferred.reject(ex);
     }
@@ -90,6 +98,9 @@ async function exposeCallbacks(page) {
       const module = result.modules[test.module];
       const currentTest = module.tests.find(t => t.name === test.name);
       Object.assign(currentTest, test);
+      if (typeof hooks.testDone === 'function') {
+        hooks.testDone(currentTest, result)
+      }
     } catch (ex) {
       deferred.reject(ex);
     }
@@ -99,6 +110,9 @@ async function exposeCallbacks(page) {
     try {
       const module = deepClone(context);
       result.modules[module.name] = module;
+      if (typeof hooks.moduleStart === 'function') {
+        hooks.moduleStart(module, result)
+      }
     } catch (ex) {
       deferred.reject(ex);
     }
@@ -112,6 +126,9 @@ async function exposeCallbacks(page) {
       currentModule.passed = module.passed;
       currentModule.runtime = module.runtime;
       currentModule.total = module.total;
+      if (typeof hooks.moduleDone === 'function') {
+        hooks.moduleDone(currentModule, result)
+      }
     } catch (ex) {
       deferred.reject(ex);
     }
@@ -123,6 +140,9 @@ async function exposeCallbacks(page) {
       const module = result.modules[test.module];
       const currentTest = module.tests.find(t => t.name === test.name);
       Object.assign(currentTest, test);
+      if (typeof hooks.testStart === 'function') {
+        hooks.testStart(currentTest, result)
+      }
     } catch (ex) {
       deferred.reject(ex);
     }
@@ -136,6 +156,9 @@ async function exposeCallbacks(page) {
 
       currentTest.log = currentTest.log || [];
       currentTest.log.push(record);
+      if (typeof hooks.testDone === 'function') {
+        hooks.testDone(currentTest, result)
+      }
     } catch (ex) {
       deferred.reject(ex);
     }
@@ -150,6 +173,7 @@ async function exposeCallbacks(page) {
  */
 async function runQunitPuppeteer(qunitPuppeteerArgs) {
   const timeout = qunitPuppeteerArgs.timeout || DEFAULT_TIMEOUT;
+  const hooks = qunitPuppeteerArgs.hooks || {};
 
   const puppeteerArgs = qunitPuppeteerArgs.puppeteerArgs || ['--allow-file-access-from-files'];
   const args = { args: puppeteerArgs };
@@ -166,7 +190,7 @@ async function runQunitPuppeteer(qunitPuppeteerArgs) {
     }
 
     // Prepare the callbacks that will be called by the page
-    const deferred = await exposeCallbacks(page);
+    const deferred = await exposeCallbacks(page, hooks);
 
     // Run the timeout timer just in case
     const timeoutId = setTimeout(() => { deferred.reject(new Error(`Test run could not finish in ${timeout}ms`)); }, timeout);
