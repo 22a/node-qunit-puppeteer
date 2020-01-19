@@ -189,6 +189,11 @@ async function runQunitPuppeteer(qunitPuppeteerArgs) {
       page.on('console', (consoleArgs) => { Console.log('[%s] %s', consoleArgs.type(), consoleArgs.text()); });
     }
 
+    // Allow client to hook into puppeteer http responses if needed
+    if (typeof hooks.response === 'function') {
+      page.on('response', hooks.response)
+    }
+
     // Prepare the callbacks that will be called by the page
     const deferred = await exposeCallbacks(page, hooks);
 
